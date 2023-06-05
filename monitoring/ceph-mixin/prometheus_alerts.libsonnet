@@ -276,10 +276,16 @@
           'for': '5m',
           expr: |||
             abs(
-              ((ceph_osd_numpg > 0) - on (%(cluster)sjob) group_left avg(ceph_osd_numpg > 0) by (%(cluster)sjob)) /
-              on (job) group_left avg(ceph_osd_numpg > 0) by (job)
-            ) * on (%(cluster)sceph_daemon) group_left(hostname) ceph_osd_metadata > 0.30
-          ||| % [$.MultiClusterQuery(), $.MultiClusterQuery(), $.MultiClusterQuery()],
+              (
+                (ceph_osd_numpg * on (%(cluster)sceph_daemon) group_left (device_class) ceph_osd_metadata > 0)
+                / on (%(cluster)sdevice_class) group_left avg by (%(cluster)sdevice_class) (
+                  ceph_osd_numpg * on (%(cluster)sceph_daemon) group_left (device_class) ceph_osd_metadata > 0
+                )
+              ) - 1
+            )
+            * on (%(cluster)sceph_daemon) group_left (hostname) ceph_osd_metadata
+            > 0.30
+          ||| % [$.MultiClusterQuery(), $.MultiClusterQuery(), $.MultiClusterQuery(), $.MultiClusterQuery(), $.MultiClusterQuery()],
           labels: { severity: 'warning', type: 'ceph_default', oid: '1.3.6.1.4.1.50495.1.2.1.4.5' },
           annotations: {
             summary: 'PGs are not balanced across OSDs%(cluster)s' % $.MultiClusterSummary(),
